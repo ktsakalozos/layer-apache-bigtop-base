@@ -1,6 +1,6 @@
 import yaml
 from charms.reactive import hook, when, when_not, set_state
-from charms.layer.hadoop_base import get_hadoop_base
+from charms.layer.apache_bigtop_base import get_bigtop_base
 from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import role_and_interface_to_relations \
     as rel_names
@@ -16,30 +16,30 @@ YARN_RELATION = (rel_names('requires', 'mapred') or
 
 @hook('upgrade-charm')
 def handle_legacy_installed_flag():
-    hadoop = get_hadoop_base()
+    hadoop = get_bigtop_base()
     if hadoop.is_installed():
-        set_state('hadoop.installed')
+        set_state('bigtop.installed')
 
 
-@when_not('hadoop.installed')
+@when_not('bigtop.installed')
 def fetch_resources():
-    hadoop = get_hadoop_base()
+    hadoop = get_bigtop_base()
     if hadoop.verify_resources():
         set_state('resources.available')
 
 
 @when('resources.available')
-@when_not('hadoop.installed')
+@when_not('bigtop.installed')
 def install_hadoop():
-    hadoop = get_hadoop_base()
+    hadoop = get_bigtop_base()
     hadoop.install()
-    set_state('hadoop.installed')
+    set_state('bigtop.installed')
 
 
 if HDFS_RELATION:
-    @when('hadoop.installed', '{hdfs}.joined'.format(hdfs=HDFS_RELATION[0]))
+    @when('bigtop.installed', '{hdfs}.joined'.format(hdfs=HDFS_RELATION[0]))
     def set_hdfs_spec(namenode):
-        hadoop = get_hadoop_base()
+        hadoop = get_bigtop_base()
         namenode.set_local_spec(hadoop.spec())
 
     @when('{hdfs}.spec.mismatch'.format(hdfs=HDFS_RELATION[0]))
@@ -50,7 +50,7 @@ if HDFS_RELATION:
 
     @when('{hdfs}.ready'.format(hdfs=HDFS_RELATION[0]))
     def configure_hdfs(namenode):
-        hadoop = get_hadoop_base()
+        hadoop = get_bigtop_base()
         hdfs = HDFS(hadoop)
         utils.update_kv_hosts(namenode.hosts_map())
         utils.manage_etc_hosts()
@@ -72,13 +72,13 @@ if HDFS_RELATION:
             for line in data.splitlines():
                 hookenv.log(line)
         hdfs.configure_hdfs_base(namenode.namenodes()[0], namenode.port())
-        set_state('hadoop.hdfs.configured')
+        set_state('bigtop.hdfs.configured')
 
 
 if YARN_RELATION:
-    @when('hadoop.installed', '{yarn}.joined'.format(yarn=YARN_RELATION[0]))
+    @when('bigtop.installed', '{yarn}.joined'.format(yarn=YARN_RELATION[0]))
     def set_yarn_spec(resourcemanager):
-        hadoop = get_hadoop_base()
+        hadoop = get_bigtop_base()
         resourcemanager.set_local_spec(hadoop.spec())
 
     @when('{yarn}.spec.mismatch'.format(yarn=YARN_RELATION[0]))
@@ -90,7 +90,7 @@ if YARN_RELATION:
 
     @when('{yarn}.ready'.format(yarn=YARN_RELATION[0]))
     def configure_yarn(resourcemanager):
-        hadoop = get_hadoop_base()
+        hadoop = get_bigtop_base()
         yarn = YARN(hadoop)
         utils.update_kv_hosts(resourcemanager.hosts_map())
         utils.manage_etc_hosts()
@@ -116,4 +116,4 @@ if YARN_RELATION:
         yarn.configure_yarn_base(
             resourcemanager.resourcemanagers()[0], resourcemanager.port(),
             resourcemanager.hs_http(), resourcemanager.hs_ipc())
-        set_state('hadoop.yarn.configured')
+        set_state('bigtop.yarn.configured')

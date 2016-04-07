@@ -22,8 +22,4 @@ optional_resources:
     url: https://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/vivid/ppc64el/bigtop.list
     hash: 911294387247f4e3eb050e971f425adf62ab867f4f9101115440b7025ea02b8d
     hash_type: sha256
-  bigtop-1.1.0:
-      url: https://www.apache.org/dist/bigtop/bigtop-1.1.0/bigtop-1.1.0-project.tar.gz
-    hash: abeb9fec87f3923948e506e37a196bc490512eba
-    bash_type: sha1
 

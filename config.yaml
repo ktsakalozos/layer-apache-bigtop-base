@@ -4,3 +4,11 @@ options:
         default: ''
         description: |
             URL from which to fetch resources (e.g., Hadoop binaries) instead of Launchpad.
+
+    bigtop_1.1.0_release:
+        type: string
+        default: 'https://www.apache.org/dist/bigtop/bigtop-1.1.0/bigtop-1.1.0-project.tar.gz?sha1=abeb9fec87f3923948e506e37a196bc490512eba'
+        description: |
+            URL to the location of Bigtop source tarball v.1.0.0
+            This points to the official Apache Bigtop releases on of the ASF mirrors.
+            The source code is needed in order to get access to project's Puppet recipes

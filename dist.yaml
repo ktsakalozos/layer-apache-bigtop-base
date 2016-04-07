@@ -8,6 +8,7 @@ packages:
     - 'libsnappy-dev'
     - 'openssl'
     - 'liblzo2-2'
+    - 'puppet'
 groups:
     - 'hadoop'
     - 'yarn'
@@ -24,6 +25,9 @@ users:
     yarn:
         groups: ['hadoop']
 dirs:
+    bigtop_hiera:
+        path: '/etc/puppet/hiera.yaml'
+        source: 'bigtop-deploy/puppet/hiera.yaml'
     hadoop:
         path: '/usr/lib/hadoop'
         perms: 0777
