@@ -1,3 +1,7 @@
+import yaml
+import os
+import errno
+
 from subprocess import CalledProcessError
 from path import Path
 
@@ -32,10 +36,45 @@ class Bigtop(object):
         hiera_dst = self.dist_config.bigtop_hiera('path')
         hiera_conf = self.dist_config.bigtop_hiera('source')
         utils.re_edit_in_place(hiera_conf, {
-            r'.*:datadir.*': '{}/{}'.format(hiera_dst, hiera_conf),
+            r'.*:datadir.*': '{0}/{1}'.format(hiera_dst, hiera_conf),
         })
 
         # generate site.yaml. Something like this would do
+        setup_bigtop_config(bigtop_dir, "{0}/hieradata/site.yaml".format(os.path.dirname(hiera_conf)))
+
+        # install required puppet modules
+        try:
+            utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib', 'puppetlabs-apt')
+        except CalledProcessError:
+            pass # All modules are set
+
+        try:
+            utils.run_as('root', 'root', 'puppet', 'apply', '-d',
+                         '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
+                         'bigtop-deploy/puppet/manifests/site.pp')
+        except CalledProcessError:
+            pass  # Everything seems to be fine
+
+        unitdata.kv().set('bigtop.installed', True)
+        unitdata.kv().flush(True)
+
+    ## Perhaps there's a better way of doing this, but I need to guarantee the
+    ## target path exists before writing to it
+    def mkdir_p(path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
+
+    ## Same as open, but making sure the path exists for the target file
+    def safe_open(path, mode):
+        mkdir_p(os.path.dirname(path))
+        return open(path, mode)
+
+    def setup_bigtop_config(self, bt_dir, hr_conf):
         # TODO how to get the name of he headnode?
         # TODO storage dirs should be configurable
         # TODO list of cluster components should be configurable
@@ -54,24 +93,17 @@ class Bigtop(object):
         bigtop::jdk_package_name: "openjdk-7-jre-headless"
         bigtop::bigtop_repo_uri: "http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64"
         """
-        # install required puppet modules
-        try:
-            utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib', 'puppetlabs-apt')
-        except CalledProcessError:
-            pass # All modules are set
+        yaml_data = {
+            'bigtop::hadoop_head_node': "hadoopmaster.example.com",
+            'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
+            'hadoop_cluster_node::cluster_components': ['yarn'],
+            'bigtop::jdk_package_name': 'openjdk-7-jre-headless',
+            'bigtop::bigtop_repo_uri': 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64',
+        }
 
-        try:
-            utils.run_as('root', 'root', 'puppet', 'apply', '-d',
-                         '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
-                         'bigtop-deploy/puppet/manifests/site.pp')
-        except CalledProcessError:
-            pass  # Everything seems to be fine
+        with safe_open("{0}/{1}".format(bt_dir, hr_conf), 'w+') as fd:
+            yaml.dump(yaml_data, fd)
 
-        unitdata.kv().set('bigtop.installed', True)
-        unitdata.kv().flush(True)
-
-    def setup_bigtop_config(self):
-        return
 
     # TODO no clear how to control the life-cycle of all other daemons in the stack
     # shall we writing separate charms for each of them?
