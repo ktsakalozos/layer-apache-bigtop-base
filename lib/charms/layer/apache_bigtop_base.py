@@ -6,7 +6,7 @@ from subprocess import CalledProcessError
 from path import Path
 
 from jujubigdata.utils import DistConfig
-from jujubigdata.handlers import BigtopBase
+# from jujubigdata.handlers import BigtopBase
 
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
