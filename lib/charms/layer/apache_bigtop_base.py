@@ -1,15 +1,16 @@
 import yaml
 import os
-import errno
 
 from subprocess import CalledProcessError
 from path import Path
+from charms import layer
 
 from jujubigdata.utils import DistConfig
 # from jujubigdata.handlers import BigtopBase
 
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
+from charmhelpers.core import unitdata
 
 
 class Bigtop(object):
@@ -19,7 +20,7 @@ class Bigtop(object):
     def is_installed(self):
         return unitdata.kv().get('bigtop.installed')
 
-    def install(self, force=false):
+    def install(self, force=False):
         if not force and self.is_installed():
             return
 
@@ -58,37 +59,6 @@ class Bigtop(object):
         unitdata.kv().set('bigtop.installed', True)
         unitdata.kv().flush(True)
 
-    def setup_bigtop_config(self, bt_dir, hr_conf):
-        # TODO how to get the name of he headnode?
-        # TODO storage dirs should be configurable
-        # TODO list of cluster components should be configurable
-        # TODO shall we be installing JDK or let Juju do it?
-        # TODO repo url is available through the config, so all's good
-        """
-        bigtop::hadoop_head_node: "hadoopmaster.example.com"
-        hadoop::hadoop_storage_dirs:
-          - "/data/1"
-          - "/data/2"
-        hadoop_cluster_node::cluster_components:
-          - ignite_hadoop
-          - spark
-          - yarn
-          - zookeeper
-        bigtop::jdk_package_name: "openjdk-7-jre-headless"
-        bigtop::bigtop_repo_uri: "http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64"
-        """
-        yaml_data = {
-            'bigtop::hadoop_head_node': "hadoopmaster.example.com",
-            'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
-            'hadoop_cluster_node::cluster_components': ['yarn'],
-            'bigtop::jdk_package_name': 'openjdk-7-jre-headless',
-            'bigtop::bigtop_repo_uri': 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64',
-        }
-
-        with safe_open("{0}/{1}".format(bt_dir, hr_conf), 'w+') as fd:
-            yaml.dump(yaml_data, fd)
-
-
     # TODO no clear how to control the life-cycle of all other daemons in the stack
     # shall we writing separate charms for each of them?
     # this is how the life-cycle management is done
@@ -115,8 +85,41 @@ class Bigtop(object):
                 dist.dist_config[key].update(opts[key])
         return dist
 
-    def get_bigtop_base():
-        return BigtopBase(get_dist_config())
+
+def setup_bigtop_config(self, bt_dir, hr_conf):
+    # TODO how to get the name of he headnode?
+    # TODO storage dirs should be configurable
+    # TODO list of cluster components should be configurable
+    # TODO shall we be installing JDK or let Juju do it?
+    # TODO repo url is available through the config, so all's good
+    """
+    bigtop::hadoop_head_node: "hadoopmaster.example.com"
+    hadoop::hadoop_storage_dirs:
+      - "/data/1"
+      - "/data/2"
+    hadoop_cluster_node::cluster_components:
+      - ignite_hadoop
+      - spark
+      - yarn
+      - zookeeper
+    bigtop::jdk_package_name: "openjdk-7-jre-headless"
+    bigtop::bigtop_repo_uri: "http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64"
+    """
+    yaml_data = {
+        'bigtop::hadoop_head_node': "hadoopmaster.example.com",
+        'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
+        'hadoop_cluster_node::cluster_components': ['yarn'],
+        'bigtop::jdk_package_name': 'openjdk-7-jre-headless',
+        'bigtop::bigtop_repo_uri': 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64',
+    }
+
+    with safe_open("{0}/{1}".format(bt_dir, hr_conf), 'w+') as fd:
+        yaml.dump(yaml_data, fd)
+
+
+
+def get_bigtop_base():
+    return Bigtop()
 
 
 # Same as open, but making sure the path exists for the target file
