@@ -16,7 +16,7 @@ class Bigtop(object):
     def __init__(self, dist_config):
         self.dist_config = dist_config
 
-    def is_installed(sefl):
+    def is_installed(self):
         return unitdata.kv().get('bigtop.installed')
 
     def install(self, force=false):
@@ -57,22 +57,6 @@ class Bigtop(object):
 
         unitdata.kv().set('bigtop.installed', True)
         unitdata.kv().flush(True)
-
-    ## Perhaps there's a better way of doing this, but I need to guarantee the
-    ## target path exists before writing to it
-    def mkdir_p(path):
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
-
-    ## Same as open, but making sure the path exists for the target file
-    def safe_open(path, mode):
-        mkdir_p(os.path.dirname(path))
-        return open(path, mode)
 
     def setup_bigtop_config(self, bt_dir, hr_conf):
         # TODO how to get the name of he headnode?
@@ -133,3 +117,9 @@ class Bigtop(object):
 
     def get_bigtop_base():
         return BigtopBase(get_dist_config())
+
+
+# Same as open, but making sure the path exists for the target file
+def safe_open(path, mode):
+    Path(path).dirname().makedirs_p()
+    return open(path, mode)
