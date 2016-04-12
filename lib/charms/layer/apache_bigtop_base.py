@@ -1,22 +1,16 @@
 import yaml
 import os
 
+import subprocess
 from subprocess import CalledProcessError
 from path import Path
-from charms import layer
-
-from jujubigdata.utils import DistConfig
-# from jujubigdata.handlers import BigtopBase
 
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
-from charmhelpers.core import unitdata
-
+from charmhelpers.core import unitdata, hookenv
+from charmhelpers.core.host import chdir
 
 class Bigtop(object):
-    def __init__(self, dist_config):
-        self.dist_config = dist_config
-
     def is_installed(self):
         return unitdata.kv().get('bigtop.installed')
 
@@ -26,35 +20,65 @@ class Bigtop(object):
 
         # download Bigtop release; unpack the recipes
         bigtop_dir = '/home/ubuntu/bigtop.release'
+        bigtop_url = hookenv.config('bigtop_1.1.0_release')
         if not unitdata.kv().get('bigtop-release.installed', False):
             Path(bigtop_dir).rmtree_p()
             au = ArchiveUrlFetchHandler()
-            au.install(bigtop_dir, '/home/ubuntu')
+            au.install(bigtop_url, bigtop_dir)
 
             unitdata.kv().set('bigtop-release.installed', True)
             unitdata.kv().flush(True)
 
-        hiera_dst = self.dist_config.bigtop_hiera('path')
-        hiera_conf = self.dist_config.bigtop_hiera('source')
-        utils.re_edit_in_place(hiera_conf, {
-            r'.*:datadir.*': '{0}/{1}'.format(hiera_dst, hiera_conf),
-        })
-
-        # generate site.yaml. Something like this would do
-        setup_bigtop_config(bigtop_dir, "{0}/hieradata/site.yaml".format(os.path.dirname(hiera_conf)))
-
         # install required puppet modules
         try:
-            utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib', 'puppetlabs-apt')
+            # BIGTOP-2003. A workaround to install newer hiera to get rid of hiera 1.3.0 bug.
+            # TODO once Ubuntu has fixed version of hiera package, this could be replaced by
+            # adding packages: ['puppet'] in layer.yaml options:basic
+            wget = 'wget -O /tmp/puppetlabs-release-trusty.deb https://apt.puppetlabs.com/puppetlabs-release-trusty.deb'
+            dpkg = 'dpkg -i /tmp/puppetlabs-release-trusty.deb'
+            apt_update = 'apt-get update'
+            puppet_install = 'apt-get install --yes puppet'
+            subprocess.call(wget.split())
+            subprocess.call(dpkg.split())
+            subprocess.call(apt_update.split())
+            subprocess.call(puppet_install.split())
+            # Install required modules
+            utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib')
+            utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-apt')
         except CalledProcessError:
             pass # All modules are set
 
+        # generate site.yaml. Something like this would do
+        hiera_dst = hookenv.config('bigtop_hiera_path')
+        hiera_conf = hookenv.config('bigtop_hiera_source')
+        bigtop_version = hookenv.config('bigtop_version')
+        hiera_site_yaml = hookenv.config('bigtop_hiera_source')
+        bigtop_site_yaml = "{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_site_yaml)
+        prepare_bigtop_config(bigtop_site_yaml)
+
+        # Now copy hiera.yaml to /etc/puppet & point hiera to use the above location as hieradata directory
+        Path("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf)).copy(hiera_dst)
+        utils.re_edit_in_place(hiera_dst, {
+            r'.*:datadir.*': "  :datadir: {0}/hieradata".format(os.path.dirname(bigtop_site_yaml)),
+        })
+
+        # TODO need to either manage the apt keys from Juju of
+        # update upstream Puppet recipes to install them along with apt source
+        # puppet apply needs to be ran where recipes were unpacked
         try:
-            utils.run_as('root', 'root', 'puppet', 'apply', '-d',
-                         '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
-                         'bigtop-deploy/puppet/manifests/site.pp')
+            with chdir("{0}/{1}".format(bigtop_dir, bigtop_version)):
+                utils.run_as('root', 'puppet', 'apply', '-d',
+                             '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
+                             'bigtop-deploy/puppet/manifests/site.pp')
         except CalledProcessError:
             pass  # Everything seems to be fine
+
+        try:
+            utils.run_as('hdfs', 'hdfs', 'dfs', '-mkdir', '-p', '/user/ubuntu')
+            utils.run_as('hdfs', 'hdfs', 'dfs', '-chown', 'ubuntu', '/user/ubuntu')
+        except CalledProcessError:
+            # TODO ubuntu user needs to be added to the upstream HDFS formating
+            pass # The home directory for ubuntu user is created
 
         unitdata.kv().set('bigtop.installed', True)
         unitdata.kv().flush(True)
@@ -65,57 +89,25 @@ class Bigtop(object):
     # lib.jujubigdata.jujubigdata.handlers.HDFS#_hadoop_daemon
     # TODO the answer is to have separate charms and handle life-cycle inside of them
 
-    def get_dist_config(required_keys=None):
-        required_keys = required_keys or [
-            'vendor', 'hadoop_version', 'packages',
-            'groups', 'users', 'dirs', 'ports']
-        dist = DistConfig(filename='dist.yaml',
-                          required_keys=required_keys)
-        opts = layer.options('apache-bigtop-base')
-        for key in ('hadoop_version',):
-            if key in opts:
-                dist.dist_config[key] = opts[key]
-        for key in ('packages', 'groups'):
-            if key in opts:
-                dist.dist_config[key] = list(
-                    set(dist.dist_config[key]) | set(opts[key])
-                )
-        for key in ('users', 'dirs', 'ports'):
-            if key in opts:
-                dist.dist_config[key].update(opts[key])
-        return dist
 
-
-def setup_bigtop_config(self, bt_dir, hr_conf):
-    # TODO how to get the name of he headnode?
+def prepare_bigtop_config(hr_conf):
     # TODO storage dirs should be configurable
     # TODO list of cluster components should be configurable
-    # TODO shall we be installing JDK or let Juju do it?
-    # TODO repo url is available through the config, so all's good
-    """
-    bigtop::hadoop_head_node: "hadoopmaster.example.com"
-    hadoop::hadoop_storage_dirs:
-      - "/data/1"
-      - "/data/2"
-    hadoop_cluster_node::cluster_components:
-      - ignite_hadoop
-      - spark
-      - yarn
-      - zookeeper
-    bigtop::jdk_package_name: "openjdk-7-jre-headless"
-    bigtop::bigtop_repo_uri: "http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64"
-    """
+    hostname = subprocess.check_output(['hostname', '-f']).strip()
+    java_package_name = hookenv.config('java_package_name')
+    # TODO figure out how to distinguish between different platforms
+    bigtop_apt = hookenv.config('bigtop_1.1.0_repo-x86_64')
+
     yaml_data = {
-        'bigtop::hadoop_head_node': "hadoopmaster.example.com",
+        'bigtop::hadoop_head_node': '{0}'.format(hostname),
         'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
         'hadoop_cluster_node::cluster_components': ['yarn'],
-        'bigtop::jdk_package_name': 'openjdk-7-jre-headless',
-        'bigtop::bigtop_repo_uri': 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64',
+        'bigtop::jdk_package_name': '{0}'.format(java_package_name),
+        'bigtop::bigtop_repo_uri': '{0}'.format(bigtop_apt),
     }
 
-    with safe_open("{0}/{1}".format(bt_dir, hr_conf), 'w+') as fd:
+    with safe_open(hr_conf, 'w+') as fd:
         yaml.dump(yaml_data, fd)
-
 
 
 def get_bigtop_base():

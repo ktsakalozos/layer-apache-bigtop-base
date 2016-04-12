@@ -1,14 +1,55 @@
 options:
     resources_mirror:
-        type: string
-        default: ''
-        description: |
+      type: string
+      default: ''
+      description: |
             URL from which to fetch resources (e.g., Hadoop binaries) instead of Launchpad.
 
+    bigtop_version:
+      type: string
+      default: 'bigtop-1.1.0'
+      description: 'Default version string of Bigtop release. Affects the location of Hiera bits and Puppet recipes'
+
     bigtop_1.1.0_release:
-        type: string
-        default: 'https://www.apache.org/dist/bigtop/bigtop-1.1.0/bigtop-1.1.0-project.tar.gz?sha1=abeb9fec87f3923948e506e37a196bc490512eba'
-        description: |
-            URL to the location of Bigtop source tarball v.1.0.0
-            This points to the official Apache Bigtop releases on of the ASF mirrors.
-            The source code is needed in order to get access to project's Puppet recipes
+      type: string
+      default: 'https://www.apache.org/dist/bigtop/bigtop-1.1.0/bigtop-1.1.0-project.tar.gz?sha1=abeb9fec87f3923948e506e37a196bc490512eba'
+      description: |
+          URL to the location of Bigtop source tarball v.1.1.0
+          This points to the official Apache Bigtop releases on of the ASF mirrors.
+          The source code is needed in order to get access to project's Puppet recipes
+
+    bigtop_1.1.0_repo-x86_64:
+      type: string
+      default: 'https://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64/bigtop.list'
+      description: URL to release apt repo for x86_64 platform
+
+    bigtop_1.1.0_repo-ppc64el:
+      type: string
+      default: 'https://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/vivid/ppc64el/bigtop.list'
+      description: URL to release apt repo for ppc64el platform
+
+    bigtop_hiera_path:
+      type: string
+      default: '/etc/puppet/hiera.yaml'
+      description: 'Hiera global configuration file'
+
+    bigtop_hiera_source:
+      type: string
+      default: 'bigtop-deploy/puppet/hiera.yaml'
+      description: 'Hiera Bigtop config'
+
+    bigtop_hiera_siteyaml:
+      type: string
+      default: 'bigtop-deploy/puppet/hieradata/site.yaml'
+      description: 'Hiera Bigtop config'
+
+    java_package_name:
+      type: string
+      default: 'openjdk-7-jre'
+      description: 'JDK/JRE package to be installed on all cluster nodes'
+
+# optional
+    hadoop-lzo-x86_64:
+      type: string
+      default: https://s3.amazonaws.com/jujubigdata/apache/x86_64/hadoop-lzo-0.4.20-SNAPSHOT-x86_64-98421de6.tgz
+      description: 'hadoop lzo binaries; should be installed separately because of GPL/ASL conflict'

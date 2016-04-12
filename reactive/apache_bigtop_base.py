@@ -16,31 +16,23 @@ YARN_RELATION = (rel_names('requires', 'mapred') or
 
 @hook('upgrade-charm')
 def handle_legacy_installed_flag():
-    hadoop = get_bigtop_base()
-    if hadoop.is_installed():
+    bigtop = get_bigtop_base()
+    if bigtop.is_installed():
         set_state('bigtop.installed')
 
 
 @when_not('bigtop.installed')
-def fetch_resources():
-    hadoop = get_bigtop_base()
-    if hadoop.verify_resources():
-        set_state('resources.available')
-
-
-@when('resources.available')
-@when_not('bigtop.installed')
 def install_hadoop():
-    hadoop = get_bigtop_base()
-    hadoop.install()
+    bigtop = get_bigtop_base()
+    bigtop.install()
     set_state('bigtop.installed')
 
 
 if HDFS_RELATION:
     @when('bigtop.installed', '{hdfs}.joined'.format(hdfs=HDFS_RELATION[0]))
     def set_hdfs_spec(namenode):
-        hadoop = get_bigtop_base()
-        namenode.set_local_spec(hadoop.spec())
+        bigtop = get_bigtop_base()
+        namenode.set_local_spec(bigtop.spec())
 
     @when('{hdfs}.spec.mismatch'.format(hdfs=HDFS_RELATION[0]))
     def hdfs_spec_mismatch(namenode):
@@ -50,8 +42,8 @@ if HDFS_RELATION:
 
     @when('{hdfs}.ready'.format(hdfs=HDFS_RELATION[0]))
     def configure_hdfs(namenode):
-        hadoop = get_bigtop_base()
-        hdfs = HDFS(hadoop)
+        bigtop = get_bigtop_base()
+        hdfs = HDFS(bigtop)
         utils.update_kv_hosts(namenode.hosts_map())
         utils.manage_etc_hosts()
         if not namenode.namenodes():
@@ -78,8 +70,8 @@ if HDFS_RELATION:
 if YARN_RELATION:
     @when('bigtop.installed', '{yarn}.joined'.format(yarn=YARN_RELATION[0]))
     def set_yarn_spec(resourcemanager):
-        hadoop = get_bigtop_base()
-        resourcemanager.set_local_spec(hadoop.spec())
+        bigtop = get_bigtop_base()
+        resourcemanager.set_local_spec(bigtop.spec())
 
     @when('{yarn}.spec.mismatch'.format(yarn=YARN_RELATION[0]))
     def yarn_spec_mismatch(resourcemanager):
@@ -90,8 +82,8 @@ if YARN_RELATION:
 
     @when('{yarn}.ready'.format(yarn=YARN_RELATION[0]))
     def configure_yarn(resourcemanager):
-        hadoop = get_bigtop_base()
-        yarn = YARN(hadoop)
+        bigtop = get_bigtop_base()
+        yarn = YARN(bigtop)
         utils.update_kv_hosts(resourcemanager.hosts_map())
         utils.manage_etc_hosts()
         if not resourcemanager.resourcemanagers():
