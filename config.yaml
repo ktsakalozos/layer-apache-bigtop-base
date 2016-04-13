@@ -33,7 +33,7 @@ options:
       default: '/etc/puppet/hiera.yaml'
       description: 'Hiera global configuration file'
 
-    bigtop_hiera_source:
+    bigtop_hiera_config:
       type: string
       default: 'bigtop-deploy/puppet/hiera.yaml'
       description: 'Hiera Bigtop config'

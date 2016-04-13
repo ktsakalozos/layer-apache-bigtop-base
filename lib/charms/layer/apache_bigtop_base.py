@@ -50,17 +50,17 @@ class Bigtop(object):
 
         # generate site.yaml. Something like this would do
         hiera_dst = hookenv.config('bigtop_hiera_path')
-        hiera_conf = hookenv.config('bigtop_hiera_source')
+        hiera_conf = hookenv.config('bigtop_hiera_config')
         bigtop_version = hookenv.config('bigtop_version')
-        hiera_site_yaml = hookenv.config('bigtop_hiera_source')
+        hiera_site_yaml = hookenv.config('bigtop_hiera_siteyaml')
         bigtop_site_yaml = "{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_site_yaml)
 
         prepare_bigtop_config(bigtop_site_yaml)
 
         # Now copy hiera.yaml to /etc/puppet & point hiera to use the above location as hieradata directory
-        Path().copy("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf), hiera_dst)
+        Path("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf)).copy(hiera_dst)
         utils.re_edit_in_place(hiera_dst, {
-            r'.*:datadir.*': "  :datadir: {0}/hieradata".format(os.path.dirname(bigtop_site_yaml)),
+            r'.*:datadir.*': "  :datadir: {0}/".format(os.path.dirname(bigtop_site_yaml)),
         })
 
         # TODO need to either manage the apt keys from Juju of
