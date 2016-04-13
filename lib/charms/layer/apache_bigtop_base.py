@@ -54,10 +54,11 @@ class Bigtop(object):
         bigtop_version = hookenv.config('bigtop_version')
         hiera_site_yaml = hookenv.config('bigtop_hiera_source')
         bigtop_site_yaml = "{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_site_yaml)
+
         prepare_bigtop_config(bigtop_site_yaml)
 
         # Now copy hiera.yaml to /etc/puppet & point hiera to use the above location as hieradata directory
-        Path("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf)).copy(hiera_dst)
+        Path().copy("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf), hiera_dst)
         utils.re_edit_in_place(hiera_dst, {
             r'.*:datadir.*': "  :datadir: {0}/hieradata".format(os.path.dirname(bigtop_site_yaml)),
         })
@@ -93,7 +94,7 @@ class Bigtop(object):
 def prepare_bigtop_config(hr_conf):
     # TODO storage dirs should be configurable
     # TODO list of cluster components should be configurable
-    hostname = subprocess.check_output(['hostname', '-f']).strip()
+    hostname = subprocess.check_output(['hostname', '-f']).strip().decode()
     java_package_name = hookenv.config('java_package_name')
     # TODO figure out how to distinguish between different platforms
     bigtop_apt = hookenv.config('bigtop_1.1.0_repo-x86_64')
