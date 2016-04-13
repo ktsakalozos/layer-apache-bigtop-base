@@ -53,10 +53,7 @@ defines:
           group: {type: string}
   ports:
     description: >
-      This option defines directories to be created during setup.  The value
-      for this option should be a mapping of symbolic identifiers to a mapping
-      containing information about the port, such as the port number, and an
-      identifier indicating for which services the port should be exposed.
+      This option defines controlled by the service.
     type: object
     patternProperties:
       '.*':
