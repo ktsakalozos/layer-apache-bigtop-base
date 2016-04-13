@@ -20,12 +20,12 @@ options:
 
     bigtop_1.1.0_repo-x86_64:
       type: string
-      default: 'https://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64/bigtop.list'
+      default: 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/trusty/x86_64'
       description: URL to release apt repo for x86_64 platform
 
     bigtop_1.1.0_repo-ppc64el:
       type: string
-      default: 'https://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/vivid/ppc64el/bigtop.list'
+      default: 'http://bigtop-repos.s3.amazonaws.com/releases/1.1.0/ubuntu/vivid/ppc64el'
       description: URL to release apt repo for ppc64el platform
 
     bigtop_hiera_path:
