@@ -51,18 +51,6 @@ class Bigtop(object):
         })
 
     def install_puppet(self):
-        # BIGTOP-2003. A workaround to install newer hiera to get rid of hiera 1.3.0 bug.
-        # TODO once Ubuntu has fixed version of hiera package, this could be replaced by
-        # adding packages: ['puppet'] in layer.yaml options:basic
-        au = ArchiveUrlFetchHandler()
-        au.download("https://apt.puppetlabs.com/puppetlabs-release-trusty.deb",
-                    "/tmp/puppetlabs-release-trusty.deb")
-        dpkg = 'dpkg -i /tmp/puppetlabs-release-trusty.deb'
-        apt_update = 'apt-get update'
-        puppet_install = 'apt-get install --yes puppet'
-        subprocess.call(dpkg.split())
-        subprocess.call(apt_update.split())
-        subprocess.call(puppet_install.split())
         # Install required modules
         utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib')
         utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-apt')
