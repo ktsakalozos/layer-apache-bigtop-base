@@ -14,7 +14,7 @@ class Bigtop(object):
     def is_installed(self):
         return unitdata.kv().get('bigtop.installed')
 
-    def install(self, force=False):
+    def install(self, NN=None, RM=None, force=False):
         if not force and self.is_installed():
             return
 
@@ -55,7 +55,7 @@ class Bigtop(object):
         hiera_site_yaml = hookenv.config('bigtop_hiera_siteyaml')
         bigtop_site_yaml = "{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_site_yaml)
 
-        prepare_bigtop_config(bigtop_site_yaml)
+        prepare_bigtop_config(bigtop_site_yaml, NN, RM)
 
         # Now copy hiera.yaml to /etc/puppet & point hiera to use the above location as hieradata directory
         Path("{0}/{1}/{2}".format(bigtop_dir, bigtop_version, hiera_conf)).copy(hiera_dst)
@@ -91,16 +91,25 @@ class Bigtop(object):
     # TODO the answer is to have separate charms and handle life-cycle inside of them
 
 
-def prepare_bigtop_config(hr_conf):
+def prepare_bigtop_config(hr_conf, NN=None, RM=None):
     # TODO storage dirs should be configurable
     # TODO list of cluster components should be configurable
-    hostname = subprocess.check_output(['hostname', '-f']).strip().decode()
+    localhost = subprocess.check_output(['hostname', '-f']).strip().decode()
+    if NN == None:
+        nn_hostname = localhost
+    else:
+        nn_hostname = NN
+    if RM == None:
+        rm_hostname = localhost
+    else:
+        rm_hostname = RM
     java_package_name = hookenv.config('java_package_name')
     # TODO figure out how to distinguish between different platforms
     bigtop_apt = hookenv.config('bigtop_1.1.0_repo-x86_64')
 
     yaml_data = {
-        'bigtop::hadoop_head_node': '{0}'.format(hostname),
+        'bigtop::hadoop_head_node': nn_hostname,
+        'hadoop::common_yarn::hadoop_rm_host': rm_hostname,
         'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
         'hadoop_cluster_node::cluster_components': ['yarn'],
         'bigtop::jdk_package_name': '{0}'.format(java_package_name),

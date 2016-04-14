@@ -21,13 +21,6 @@ def handle_legacy_installed_flag():
         set_state('bigtop.installed')
 
 
-@when_not('bigtop.installed')
-def install_hadoop():
-    bigtop = get_bigtop_base()
-    bigtop.install()
-    set_state('bigtop.installed')
-
-
 if HDFS_RELATION:
     @when('bigtop.installed', '{hdfs}.joined'.format(hdfs=HDFS_RELATION[0]))
     def set_hdfs_spec(namenode):
