@@ -17,10 +17,10 @@ class Bigtop(object):
         self.bigtop_dir = '/home/ubuntu/bigtop.release'
         self.bigtop_version = layer.option('bigtop_version')
 
-    def install(self, force=False):
+    def install(self, NN=None, RM=None):
         self.fetch_bigtop_release()
         self.install_puppet()
-        self.setup_puppet_config()
+        self.setup_puppet_config(NN, RM)
         self.trigger_puppet()
         self.setup_hdfs()
 
@@ -37,13 +37,13 @@ class Bigtop(object):
         utils.run_as('hdfs', 'hdfs', 'dfs', '-mkdir', '-p', '/user/ubuntu')
         utils.run_as('hdfs', 'hdfs', 'dfs', '-chown', 'ubuntu', '/user/ubuntu')
 
-    def setup_puppet_config(self):
+    def setup_puppet_config(self, NN, RM):
         # generate site.yaml. Something like this would do
         hiera_dst = hookenv.config('bigtop_hiera_path')
         hiera_conf = hookenv.config('bigtop_hiera_config')
         hiera_site_yaml = hookenv.config('bigtop_hiera_siteyaml')
         bigtop_site_yaml = "{0}/{1}/{2}".format(self.bigtop_dir, self.bigtop_version, hiera_site_yaml)
-        self.prepare_bigtop_config(bigtop_site_yaml)
+        self.prepare_bigtop_config(bigtop_site_yaml, NN, RM)
         # Now copy hiera.yaml to /etc/puppet & point hiera to use the above location as hieradata directory
         Path("{0}/{1}/{2}".format(self.bigtop_dir, self.bigtop_version, hiera_conf)).copy(hiera_dst)
         utils.re_edit_in_place(hiera_dst, {
@@ -73,16 +73,25 @@ class Bigtop(object):
         au = ArchiveUrlFetchHandler()
         au.install(bigtop_url, self.bigtop_dir)
 
-    def prepare_bigtop_config(self, hr_conf):
+    def prepare_bigtop_config(self, hr_conf, NN, RM):
         # TODO storage dirs should be configurable
         # TODO list of cluster components should be configurable
-        hostname = subprocess.check_output(['hostname', '-f']).strip().decode()
+        localhost = subprocess.check_output(['hostname', '-f']).strip().decode()
+        if NN == None:
+            nn_hostname = localhost
+        else:
+            nn_hostname = NN
+        if RM == None:
+            rm_hostname = localhost
+        else:
+            rm_hostname = RM
         java_package_name = hookenv.config('java_package_name')
         # TODO figure out how to distinguish between different platforms
         bigtop_apt = hookenv.config('bigtop_1.1.0_repo-x86_64')
 
         yaml_data = {
-            'bigtop::hadoop_head_node': '{0}'.format(hostname),
+            'bigtop::hadoop_head_node': nn_hostname,
+            'hadoop::common_yarn::hadoop_rm_host': rm_hostname,
             'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
             'hadoop_cluster_node::cluster_components': ['yarn'],
             'bigtop::jdk_package_name': '{0}'.format(java_package_name),
