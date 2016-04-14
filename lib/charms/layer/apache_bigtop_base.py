@@ -19,7 +19,7 @@ class Bigtop(object):
 
     def install(self, NN=None, RM=None):
         self.fetch_bigtop_release()
-        self.install_puppet()
+        self.install_puppet_modules()
         self.setup_puppet_config(NN, RM)
         self.trigger_puppet()
         self.setup_hdfs()
@@ -34,6 +34,7 @@ class Bigtop(object):
                          'bigtop-deploy/puppet/manifests/site.pp')
 
     def setup_hdfs(self):
+        # TODO ubuntu user needs to be added to the upstream HDFS formating
         utils.run_as('hdfs', 'hdfs', 'dfs', '-mkdir', '-p', '/user/ubuntu')
         utils.run_as('hdfs', 'hdfs', 'dfs', '-chown', 'ubuntu', '/user/ubuntu')
 
@@ -50,7 +51,7 @@ class Bigtop(object):
             r'.*:datadir.*': "  :datadir: {0}/".format(os.path.dirname(bigtop_site_yaml)),
         })
 
-    def install_puppet(self):
+    def install_puppet_modules(self):
         # Install required modules
         utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-stdlib')
         utils.run_as('root', 'puppet', 'module', 'install', 'puppetlabs-apt')
