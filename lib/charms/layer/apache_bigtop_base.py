@@ -8,6 +8,7 @@ from charms import layer
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
 from charmhelpers.core.host import chdir
+from jujubigdata.utils import DistConfig
 
 
 class Bigtop(object):
@@ -95,3 +96,7 @@ class Bigtop(object):
 
 def get_bigtop_base():
     return Bigtop()
+
+
+def get_layer_opts():
+    return DistConfig(data=layer.options('apache-bigtop-base'))
