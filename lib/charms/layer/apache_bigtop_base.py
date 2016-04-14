@@ -54,11 +54,12 @@ class Bigtop(object):
         # BIGTOP-2003. A workaround to install newer hiera to get rid of hiera 1.3.0 bug.
         # TODO once Ubuntu has fixed version of hiera package, this could be replaced by
         # adding packages: ['puppet'] in layer.yaml options:basic
-        wget = 'wget -O /tmp/puppetlabs-release-trusty.deb https://apt.puppetlabs.com/puppetlabs-release-trusty.deb'
+        au = ArchiveUrlFetchHandler()
+        au.download("https://apt.puppetlabs.com/puppetlabs-release-trusty.deb",
+                    "/tmp/puppetlabs-release-trusty.deb")
         dpkg = 'dpkg -i /tmp/puppetlabs-release-trusty.deb'
         apt_update = 'apt-get update'
         puppet_install = 'apt-get install --yes puppet'
-        subprocess.call(wget.split())
         subprocess.call(dpkg.split())
         subprocess.call(apt_update.split())
         subprocess.call(puppet_install.split())
@@ -87,7 +88,7 @@ class Bigtop(object):
             rm_hostname = RM
         java_package_name = self.options.get('java_package_name')
         # TODO figure out how to distinguish between different platforms
-        bigtop_apt = self.options.get('bigtop_1.1.0_repo-x86_64')
+        bigtop_apt = self.options.get('bigtop_repo-{}'.format(utils.cpu_arch()))
 
         yaml_data = {
             'bigtop::hadoop_head_node': nn_hostname,
