@@ -1,5 +1,6 @@
 import yaml
 import os
+import sys
 
 import subprocess
 from path import Path
@@ -7,6 +8,7 @@ from path import Path
 from charms import layer
 from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
+from charmhelpers.core import hookenv
 from charmhelpers.core.host import chdir
 from jujubigdata.utils import DistConfig
 
@@ -26,7 +28,7 @@ class Bigtop(object):
         self.setup_hdfs()
 
     def trigger_puppet(self):
-        # TODO need to either manage the apt keys from Juju of
+        # TODO need to either manage the apt keys from Juju or
         # update upstream Puppet recipes to install them along with apt source
         # puppet apply needs to be ran where recipes were unpacked
         with chdir("{0}/{1}".format(self.bigtop_dir, self.bigtop_version)):
@@ -64,27 +66,44 @@ class Bigtop(object):
         au = ArchiveUrlFetchHandler()
         au.install(bigtop_url, self.bigtop_dir)
 
-    def prepare_bigtop_config(self, hr_conf, NN, RM):
+    def prepare_bigtop_config(self, hr_conf, NN=None, RM=None, extra=None):
+        '''
+        NN: fqdn of the namenode (head node)
+        RM: fqdn of the resourcemanager (optional)
+        extra: list of extra cluster components
+        '''
         # TODO storage dirs should be configurable
         # TODO list of cluster components should be configurable
-        localhost = subprocess.check_output(['hostname', '-f']).strip().decode()
+        cluster_components = ['hadoop']
+        # Setting NN (our head node) is required; exit and log if we dont have it
         if NN is None:
-            nn_hostname = localhost
+            hookenv.log("No NN hostname given for install")
+            hookenv.status_set("waiting", "Cannot install without NN")
+            sys.exit(1)
         else:
-            nn_hostname = NN
+            nn_fqdn = NN
+            hookenv.log("Using %s as our hadoop_head_node" % nn_fqdn)
+
+        # If we have an RM, add 'yarn' to the installed components
         if RM is None:
-            rm_hostname = localhost
+            rm_fqdn = ''
+            hookenv.log("No RM hostname given for install")
         else:
-            rm_hostname = RM
+            rm_fqdn = RM
+            cluster_components.append('yarn')
+
+        # Add anything else the user wanted
+        if extra is not None:
+            cluster_components.extend(extra)
+
         java_package_name = self.options.get('java_package_name')
-        # TODO figure out how to distinguish between different platforms
         bigtop_apt = self.options.get('bigtop_repo-{}'.format(utils.cpu_arch()))
 
         yaml_data = {
-            'bigtop::hadoop_head_node': nn_hostname,
-            'hadoop::common_yarn::hadoop_rm_host': rm_hostname,
+            'bigtop::hadoop_head_node': nn_fqdn,
+            'hadoop::common_yarn::hadoop_rm_host': rm_fqdn,
             'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
-            'hadoop_cluster_node::cluster_components': ['yarn'],
+            'hadoop_cluster_node::cluster_components': cluster_components,
             'bigtop::jdk_package_name': '{0}'.format(java_package_name),
             'bigtop::bigtop_repo_uri': '{0}'.format(bigtop_apt),
         }
