@@ -66,20 +66,18 @@ class Bigtop(object):
         au = ArchiveUrlFetchHandler()
         au.install(bigtop_url, self.bigtop_dir)
 
-    def prepare_bigtop_config(self, hr_conf, NN=None, RM=None, extra=None):
+    def prepare_bigtop_config(self, hr_conf, NN=None, RM=None):
         '''
         NN: fqdn of the namenode (head node)
         RM: fqdn of the resourcemanager (optional)
         extra: list of extra cluster components
         '''
         # TODO storage dirs should be configurable
-        # TODO list of cluster components should be configurable
-        cluster_components = ['hadoop']
+        cluster_components = self.options.get("bigtop_component_list").split()
         # Setting NN (our head node) is required; exit and log if we dont have it
         if NN is None:
+            nn_fqdn = ''
             hookenv.log("No NN hostname given for install")
-            hookenv.status_set("waiting", "Cannot install without NN")
-            sys.exit(1)
         else:
             nn_fqdn = NN
             hookenv.log("Using %s as our hadoop_head_node" % nn_fqdn)
@@ -90,11 +88,6 @@ class Bigtop(object):
             hookenv.log("No RM hostname given for install")
         else:
             rm_fqdn = RM
-            cluster_components.append('yarn')
-
-        # Add anything else the user wanted
-        if extra is not None:
-            cluster_components.extend(extra)
 
         java_package_name = self.options.get('java_package_name')
         bigtop_apt = self.options.get('bigtop_repo-{}'.format(utils.cpu_arch()))
