@@ -1,6 +1,11 @@
 includes: ['layer:basic', 'layer:puppet']
 
 defines:
+  bigtop_component_list:
+    type: string
+    default: 'hadoop'
+    description: 'Space seperated list of bigtop component to be installed'
+
   bigtop_version:
     type: string
     default: 'bigtop-1.1.0'

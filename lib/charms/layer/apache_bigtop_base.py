@@ -1,8 +1,6 @@
 import yaml
 import os
-import sys
 
-import subprocess
 from path import Path
 
 from charms import layer
