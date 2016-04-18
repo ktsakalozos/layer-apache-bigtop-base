@@ -1,5 +1,6 @@
 import yaml
 import os
+import subprocess
 
 from path import Path
 
@@ -161,7 +162,9 @@ class Bigtop(object):
         java_package_name = self.options.get('java_package_name')
         bigtop_apt = self.options.get('bigtop_repo-{}'.format(utils.cpu_arch()))
 
+        gw_host = subprocess.check_output(['facter', 'fqdn']).strip().decode()
         yaml_data = {
+            'bigtop::hadoop_gateway_node': gw_host,
             'bigtop::hadoop_head_node': nn_fqdn,
             'hadoop::common_yarn::hadoop_rm_host': rm_fqdn,
             'hadoop::hadoop_storage_dirs': ['/data/1', '/data/2'],
