@@ -10,7 +10,6 @@ from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import chdir
-from jujubigdata.utils import DistConfig, xmlpropmap_edit_in_place
 
 
 class Bigtop(object):
@@ -46,20 +45,19 @@ class Bigtop(object):
             # utils.run_as('root', 'patch', '-p1', '-s', '-i', nm_patch)
         # HACK TODO FIX ABOVE KWM
 
-        # If we can't reverse resolve the hostname (like on azure), support DN
-        # registration by IP address.
-        try:
-            socket.gethostbyaddr(utils.resolve_private_address(hookenv.unit_private_ip()))
-        except socket.herror:
-            hdfs_site_template = Path(self.bigtop_base) / \
-                'bigtop-deploy/puppet/modules/hadoop/templates/hdfs-site.xml'
-            with xmlpropmap_edit_in_place(hdfs_site_template) as props:
-                props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
         # puppet apply needs to be ran where recipes were unpacked
         with chdir("{}".format(self.bigtop_base)):
             utils.run_as('root', 'puppet', 'apply', '-d',
                          '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
                          'bigtop-deploy/puppet/manifests/site.pp')
+        # If we can't reverse resolve the hostname (like on azure), support DN
+        # registration by IP address.
+        try:
+            socket.gethostbyaddr(utils.resolve_private_address(hookenv.unit_private_ip()))
+        except socket.herror:
+            hdfs_site = Path('/etc/hadoop/conf/hdfs-site.xml')
+            with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+                props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
 
     def setup_hdfs(self):
         # TODO ubuntu user needs to be added to the upstream HDFS formating
@@ -193,4 +191,4 @@ def get_bigtop_base():
 
 
 def get_layer_opts():
-    return DistConfig(data=layer.options('apache-bigtop-base'))
+    return utils.DistConfig(data=layer.options('apache-bigtop-base'))

@@ -46,7 +46,7 @@ defines:
 
   java_package_name:
     type: string
-    default: 'openjdk-7-jre'
+    default: 'default-jre-headless'
     description: 'JDK/JRE package to be installed on all cluster nodes'
 
   hadoop_version:
