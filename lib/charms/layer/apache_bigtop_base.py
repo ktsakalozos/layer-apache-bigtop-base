@@ -1,5 +1,6 @@
-import yaml
 import os
+import socket
+import yaml
 
 from path import Path
 
@@ -8,7 +9,7 @@ from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler
 from jujubigdata import utils
 from charmhelpers.core import hookenv
 from charmhelpers.core.host import chdir
-from jujubigdata.utils import DistConfig
+from jujubigdata.utils import DistConfig, xmlpropmap_edit_in_place
 
 
 class Bigtop(object):
@@ -17,6 +18,7 @@ class Bigtop(object):
         self.bigtop_dir = '/home/ubuntu/bigtop.release'
         self.options = layer.options('apache-bigtop-base')
         self.bigtop_version = self.options.get('bigtop_version')
+        self.bigtop_base = Path(self.bigtop_dir) / self.bigtop_version
 
     # install role
     def install(self, hosts, roles):
@@ -33,9 +35,6 @@ class Bigtop(object):
         self.trigger_puppet()
 
     def trigger_puppet(self):
-        # TODO need to either manage the apt keys from Juju or
-        # update upstream Puppet recipes to install them along with apt source
-        # puppet apply needs to be ran where recipes were unpacked
         # HACK TODO FIX KWM: rm does not need Hdfs_init and will fail
         charm_dir = hookenv.charm_dir()
         rm_patch = Path(charm_dir) / 'resources/patch1_rm_init_hdfs.patch'
@@ -45,7 +44,18 @@ class Bigtop(object):
             utils.run_as('root', 'patch', '-p1', '-s', '-i', rm_patch)
             # utils.run_as('root', 'patch', '-p1', '-s', '-i', nm_patch)
         # HACK TODO FIX ABOVE KWM
-        with chdir("{0}/{1}".format(self.bigtop_dir, self.bigtop_version)):
+
+        # If we can't reverse resolve the hostname (like on azure), support DN
+        # registration by IP address.
+        try:
+            socket.gethostbyaddr(utils.resolve_private_address(hookenv.unit_private_ip()))
+        except socket.herror:
+            hdfs_site_template = Path(self.bigtop_base) / \
+                'bigtop-deploy/puppet/modules/hadoop/templates/hdfs-site.xml'
+            with xmlpropmap_edit_in_place(hdfs_site_template) as props:
+                props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
+        # puppet apply needs to be ran where recipes were unpacked
+        with chdir("{}".format(self.bigtop_base)):
             utils.run_as('root', 'puppet', 'apply', '-d',
                          '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
                          'bigtop-deploy/puppet/manifests/site.pp')
