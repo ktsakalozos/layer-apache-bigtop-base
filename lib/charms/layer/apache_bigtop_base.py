@@ -57,6 +57,16 @@ class Bigtop(object):
         utils.run_as('hdfs', 'hdfs', 'dfs', '-mkdir', '-p', '/user/ubuntu')
         utils.run_as('hdfs', 'hdfs', 'dfs', '-chown', 'ubuntu', '/user/ubuntu')
 
+    def spec(self):
+        """Return spec for services that require compatibility checks.
+
+        This must only be called after 'hadoop' is installed.
+        """
+        return {
+            'vendor': 'bigtop',
+            'hadoop': get_hadoop_version(),
+        }
+
     def setup_puppet(self, hosts, roles=None):
         # generate site.yaml for either role or component based installation
         hiera_dst = self.options.get('bigtop_hiera_path')
@@ -160,6 +170,12 @@ class Bigtop(object):
 
 def get_bigtop_base():
     return Bigtop()
+
+
+def get_hadoop_version():
+    hadoop_out = subprocess.check_output(['hadoop', 'version']).decode()
+    version = hadoop_out.split('\n')[0].split()[1]
+    return version
 
 
 def get_layer_opts():
