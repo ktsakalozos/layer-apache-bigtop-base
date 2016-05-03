@@ -1,5 +1,5 @@
---- bigtop-deploy.orig/puppet/modules/hadoop/manifests/init.pp	2016-05-02 20:02:18.735685999 +0000
-+++ bigtop-deploy/puppet/modules/hadoop/manifests/init.pp	2016-05-03 17:07:15.402094331 +0000
+--- a/bigtop-deploy/puppet/modules/hadoop/manifests/init.pp	2016-05-02 20:02:18.735685999 +0000
++++ b/bigtop-deploy/puppet/modules/hadoop/manifests/init.pp	2016-05-03 17:07:15.402094331 +0000
 @@ -865,6 +865,7 @@ class hadoop ($hadoop_security_authentic
    }
 
