@@ -32,10 +32,13 @@ class Bigtop(object):
         charm_dir = hookenv.charm_dir()
         rm_patch = Path(charm_dir) / 'resources/patch1_rm_init_hdfs.patch'
         # nm_patch = Path(charm_dir) / 'resources/patch2_nm_core-site.patch'
+        client_patch = Path(charm_dir) / 'resources/patch3_client_role_use_common_yarn.patch'
         with chdir("{}".format(self.bigtop_base)):
             # rm patch goes first
             utils.run_as('root', 'patch', '-p1', '-s', '-i', rm_patch)
+            # not needed since nm now includes mapred role
             # utils.run_as('root', 'patch', '-p1', '-s', '-i', nm_patch)
+            utils.run_as('root', 'patch', '-p1', '-s', '-i', client_patch)
         # HACK TODO FIX ABOVE KWM
 
         # puppet apply needs to be ran where recipes were unpacked
