@@ -28,18 +28,23 @@ class Bigtop(object):
         self.trigger_puppet()
 
     def trigger_puppet(self):
-        # HACK TODO FIX KWM: rm does not need Hdfs_init and will fail
         charm_dir = hookenv.charm_dir()
+        # TODO JIRA KWM: rm does not need Hdfs_init and will fail
         rm_patch = Path(charm_dir) / 'resources/patch1_rm_init_hdfs.patch'
+        # TODO JIRA KWM: nm should not *need* mapred role. we could patch it
+        # with nm_patch, or adjust nm charm to include mapred role. for now,
+        # we're doing the latter. todo rfc from dev@bigtop list.
         # nm_patch = Path(charm_dir) / 'resources/patch2_nm_core-site.patch'
+        # TODO JIRA KWM: client role needs common_yarn for yarn-site.xml
         client_patch = Path(charm_dir) / 'resources/patch3_client_role_use_common_yarn.patch'
         with chdir("{}".format(self.bigtop_base)):
             # rm patch goes first
             utils.run_as('root', 'patch', '-p1', '-s', '-i', rm_patch)
-            # not needed since nm now includes mapred role
+            # skip nm_patch for now since nm charm is including mapred role
             # utils.run_as('root', 'patch', '-p1', '-s', '-i', nm_patch)
+            # client patch goes last
             utils.run_as('root', 'patch', '-p1', '-s', '-i', client_patch)
-        # HACK TODO FIX ABOVE KWM
+        # TODO FIX ABOVE KWM
 
         # puppet apply needs to be ran where recipes were unpacked
         with chdir("{}".format(self.bigtop_base)):
@@ -54,6 +59,15 @@ class Bigtop(object):
             hdfs_site = Path('/etc/hadoop/conf/hdfs-site.xml')
             with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
                 props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
+
+        # We know java7 has MAXHOSTNAMELEN of 64 char, so we cannot rely on
+        # java to do a hostname lookup on clouds that have >64 char fqdns
+        # (gce). Force short hostname (< 64 char) into /etc/hosts as workaround.
+        # Better fix may be to move to java8. See http://paste.ubuntu.com/16230171/
+        host_name = subprocess.check_output(['facter', 'hostname']).strip().decode()
+        if host_name:
+            sed_expr = "s/^127.0.0.1.*$/127.0.0.1 localhost %s/" % host_name
+            subprocess.check_call(["sed", "-i", "%s" % sed_expr, "/etc/hosts"])
 
     def setup_hdfs(self):
         # TODO ubuntu user needs to be added to the upstream HDFS formating
