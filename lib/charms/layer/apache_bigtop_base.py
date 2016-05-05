@@ -28,6 +28,18 @@ class Bigtop(object):
         self.trigger_puppet()
 
     def trigger_puppet(self):
+        # We know java7 has MAXHOSTNAMELEN of 64 char, so we cannot rely on
+        # java to do a hostname lookup on clouds that have >64 char fqdns
+        # (gce). Force short hostname (< 64 char) into /etc/hosts as workaround.
+        # Better fix may be to move to java8. See http://paste.ubuntu.com/16230171/
+        # NB: do this before the puppet apply, which may call java stuffs
+        # (like format namenode), which will fail if we dont get this fix
+        # down early.
+        host_name = subprocess.check_output(['facter', 'hostname']).strip().decode()
+        if host_name:
+            sed_expr = "s/^127.0.0.1.*$/127.0.0.1 localhost %s/" % host_name
+            subprocess.check_call(["sed", "-i", "%s" % sed_expr, "/etc/hosts"])
+
         charm_dir = hookenv.charm_dir()
         # TODO JIRA KWM: rm does not need Hdfs_init and will fail
         rm_patch = Path(charm_dir) / 'resources/patch1_rm_init_hdfs.patch'
@@ -59,15 +71,6 @@ class Bigtop(object):
             hdfs_site = Path('/etc/hadoop/conf/hdfs-site.xml')
             with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
                 props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
-
-        # We know java7 has MAXHOSTNAMELEN of 64 char, so we cannot rely on
-        # java to do a hostname lookup on clouds that have >64 char fqdns
-        # (gce). Force short hostname (< 64 char) into /etc/hosts as workaround.
-        # Better fix may be to move to java8. See http://paste.ubuntu.com/16230171/
-        host_name = subprocess.check_output(['facter', 'hostname']).strip().decode()
-        if host_name:
-            sed_expr = "s/^127.0.0.1.*$/127.0.0.1 localhost %s/" % host_name
-            subprocess.check_call(["sed", "-i", "%s" % sed_expr, "/etc/hosts"])
 
     def setup_hdfs(self):
         # TODO ubuntu user needs to be added to the upstream HDFS formating
