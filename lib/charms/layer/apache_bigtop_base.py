@@ -35,10 +35,11 @@ class Bigtop(object):
         # NB: do this before the puppet apply, which may call java stuffs
         # (like format namenode), which will fail if we dont get this fix
         # down early.
-        host_name = subprocess.check_output(['facter', 'hostname']).strip().decode()
-        if host_name:
-            sed_expr = "s/^127.0.0.1.*$/127.0.0.1 localhost %s/" % host_name
-            subprocess.check_call(["sed", "-i", "%s" % sed_expr, "/etc/hosts"])
+        short_host = subprocess.check_output(['facter', 'hostname']).strip().decode()
+        private_ip = utils.resolve_private_address(hookenv.unit_private_ip())
+        if short_host and private_ip:
+            line = "%s %s" % (private_ip, short_host)
+            Path("/etc/hosts").write_lines([line], append=True)
 
         charm_dir = hookenv.charm_dir()
         # TODO JIRA KWM: rm does not need Hdfs_init and will fail
