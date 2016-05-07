@@ -47,8 +47,8 @@ class Bigtop(object):
         short_host = subprocess.check_output(['facter', 'hostname']).strip().decode()
         private_ip = utils.resolve_private_address(hookenv.unit_private_ip())
         if short_host and private_ip:
-            line = "%s %s" % (private_ip, short_host)
-            Path("/etc/hosts").write_lines([line], append=True)
+            utils.update_kv_host(private_ip, short_host)
+            utils.manage_etc_hosts()
 
         charm_dir = hookenv.charm_dir()
         # TODO JIRA KWM: rm does not need Hdfs_init and will fail
