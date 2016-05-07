@@ -28,12 +28,21 @@ class Bigtop(object):
         self.trigger_puppet()
 
     def trigger_puppet(self):
+        # If we can't reverse resolve the hostname (like on azure), support DN
+        # registration by IP address.
+        # NB: determine this *before* updating /etc/hosts below since
+        # gethostbyaddr will not fail if we have an /etc/hosts entry.
+        reverse_dns_bad = False
+        try:
+            socket.gethostbyaddr(utils.resolve_private_address(hookenv.unit_private_ip()))
+        except socket.herror:
+            reverse_dns_bad = True
         # We know java7 has MAXHOSTNAMELEN of 64 char, so we cannot rely on
         # java to do a hostname lookup on clouds that have >64 char fqdns
         # (gce). Force short hostname (< 64 char) into /etc/hosts as workaround.
         # Better fix may be to move to java8. See http://paste.ubuntu.com/16230171/
         # NB: do this before the puppet apply, which may call java stuffs
-        # (like format namenode), which will fail if we dont get this fix
+        # like format namenode, which will fail if we dont get this fix
         # down early.
         short_host = subprocess.check_output(['facter', 'hostname']).strip().decode()
         private_ip = utils.resolve_private_address(hookenv.unit_private_ip())
@@ -64,11 +73,9 @@ class Bigtop(object):
             utils.run_as('root', 'puppet', 'apply', '-d',
                          '--modulepath="bigtop-deploy/puppet/modules:/etc/puppet/modules"',
                          'bigtop-deploy/puppet/manifests/site.pp')
-        # If we can't reverse resolve the hostname (like on azure), support DN
-        # registration by IP address.
-        try:
-            socket.gethostbyaddr(utils.resolve_private_address(hookenv.unit_private_ip()))
-        except socket.herror:
+
+        # Do any post-puppet config on the generated config files.
+        if reverse_dns_bad:
             hdfs_site = Path('/etc/hadoop/conf/hdfs-site.xml')
             with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
                 props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'false'
