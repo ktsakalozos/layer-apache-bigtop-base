@@ -20,11 +20,11 @@ class Bigtop(object):
         self.bigtop_version = self.options.get('bigtop_version')
         self.bigtop_base = Path(self.bigtop_dir) / self.bigtop_version
 
-    def install(self, hosts, roles=None):
+    def install(self, hosts, roles=None, hiera_params=None):
         '''Fetch, install, setup puppet config, and run puppet apply.'''
         self.fetch_bigtop_release()
         self.install_puppet_modules()
-        self.setup_puppet(hosts, roles)
+        self.setup_puppet(hosts, roles, hiera_params)
         self.trigger_puppet()
 
     def trigger_puppet(self):
@@ -95,13 +95,15 @@ class Bigtop(object):
             'hadoop': get_hadoop_version(),
         }
 
-    def setup_puppet(self, hosts, roles=None):
+    def setup_puppet(self, hosts, roles=None, hiera_params=None):
         # generate site.yaml for either role or component based installation
         hiera_dst = self.options.get('bigtop_hiera_path')
         hiera_conf = self.options.get('bigtop_hiera_config')
         hiera_site_yaml = self.options.get('bigtop_hiera_siteyaml')
         bigtop_site_yaml = "{0}/{1}".format(self.bigtop_base, hiera_site_yaml)
-        if roles is None:
+        if not (hiera_params is None):
+            self.prepare_bigtop_passthrough(bigtop_site_yaml, hiera_params)
+        elif roles is None:
             self.prepare_bigtop_component(bigtop_site_yaml, hosts)
         else:
             self.prepare_bigtop_role(bigtop_site_yaml, hosts, roles)
@@ -194,6 +196,20 @@ class Bigtop(object):
         Path(hr_conf).dirname().makedirs_p()
         with open(hr_conf, 'w+') as fd:
             yaml.dump(yaml_data, fd)
+
+    def prepare_bigtop_passthrough(self, hr_conf, hiera_params):
+        '''
+        :param hosts: dict of {service: fqdn}
+        '''
+        java_package_name = self.options.get('java_package_name')
+        bigtop_apt = self.options.get('bigtop_repo-{}'.format(utils.cpu_arch()))
+        hiera_params['hadoop::hadoop_storage_dirs'] = ['/data/1', '/data/2']
+        hiera_params['bigtop::jdk_package_name'] = '{0}'.format(java_package_name)
+        hiera_params['bigtop::bigtop_repo_uri'] = '{0}'.format(bigtop_apt)
+
+        Path(hr_conf).dirname().makedirs_p()
+        with open(hr_conf, 'w+') as fd:
+            yaml.dump(hiera_params, fd)
 
 
 def get_bigtop_base():
